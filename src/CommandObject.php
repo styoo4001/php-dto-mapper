@@ -23,7 +23,7 @@ abstract class CommandObject implements RequestCommand, JsonSerializable
     /**
      * @return bool
      */
-    public function hasError(): bool
+    public function hasErrors(): bool
     {
         return !empty($this->commandObjectErrors);
     }

@@ -4,7 +4,7 @@ interface RequestCommand
 {
     public function validation(CommandObjectValidator $validator);
 
-    public function hasError(): bool;
+    public function hasErrors(): bool;
 
     public function getErrors(): array;
 

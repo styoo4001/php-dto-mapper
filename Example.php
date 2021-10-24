@@ -1,41 +1,73 @@
 <?php
+// formData from Http Request
+$_REQUEST = [
+    'name' => 'styoo',
+    'age' => '35',
+    'money' = '1,000'
+];
 
-
-class ExampleController
+class Controller
 {
-
-    public function index(UserDto $user)
+    // converting array data into DTO.
+    public function example()
     {
-        if ($user->hasError()) {
-            var_dump($user->getErrors());
-        }
-        echo $user->getUserName();
-    }
-
-    public function simpleArrayToDto()
-    {
-        $data = [
-            'userName'=> '',
-            'userAge' => '35',
-            'money' => '100',
-            'moneyList' => [ 5, 100, 200],
-            'nullable' => null,
-            'skill' => ['php', 'javascript'],
-            'eyesight' => '0.85',
-            'married' => 0,
-            'userBirth' => '19870301'
-        ];
         $mapper = new DataTransferObjectMapper();
-        $mapper->mapping($data,UserDto::class);
-        if($mapper->hasErrors()){
-            var_dump($mapper->getErrors());
-        }
-        /** @var UserDto $user */
-        $user = $mapper->getClass();
+        /** @var User $user */
+        $user = $mapper->mapping($_REQUEST, User::class)->getClass();
+        if ($mapper->hasErrors()) throw new Exception(var_export($mapper->getErrors(), true));
+        $user->getName() === 'styoo';
+        $user->getAge() === 35;
+        $user->getMoney()->getAmount() === 1000;
+    }
 
-        echo $user->getUserName();
+    // If there is a provider layer in the framework,
+    // you can apply this mapper to implement it like a Command Object.
+    public function index(User $user)
+    {
+        if ($user->hasErrors()) throw new Exception(var_export($user->getErrors(), true));
+
+        $user->getName() === 'styoo';
+        $user->getAge() === 35;
+        $user->getMoney()->getAmount() === 1000;
+
+    }
+}
+
+// Inheritance is only necessary when used as a command object.
+class User extends CommandObject
+{
+    private string $name;
+    private int $age;
+    private Money $money;
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function getAge(): int
+    {
+        return $this->age;
+    }
+
+    public function getMoney(): Money
+    {
+        return $this->money;
     }
 
 
+    protected function rule(): array
+    {
+        return ['name' => ['required'], 'age' => ['required', 'int']];
+    }
+}
 
+class Money
+{
+    private int $amount;
+
+    public function getAmount(): int
+    {
+        return $this->amount;
+    }
 }
