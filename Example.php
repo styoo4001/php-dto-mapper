@@ -24,7 +24,14 @@ $_REQUEST = [
     'exampleList' => [
         ['example1' => 500, 'example2' => 'string'],
         ['example1' => 1000, 'example2' => 'string']
-    ]
+    ],
+    'example2' => ['secondArgument' => "example", 'firstArgument' => 1000], // If there is a key value, the order is not important. like namedArgument on php 8 //
+    'example21' => [1000, "example"],
+    'example3' => ['firstArgument' => 1000, 'thirdArgument' => "third"],
+    'example31' => [1000],
+    'example4' => ['firstArgument' => 1000, "secondArgument" => "customValue"],
+    'example41' => [1000, "customValue", "third"],
+
 ];
 
 $class = new Controller();
@@ -63,6 +70,18 @@ class Controller
         foreach ($user->getExampleList() as $example) {
             echo $example->getNumber();
         }
+
+        echo $user->getExample2()->getNumber() === 2000;
+        echo $user->getExample21()->getNumber() === 2000;
+        echo $user->getExample3()->getString() === "defaultValue";
+        echo $user->getExample31()->getString() === "defaultValue";
+        echo $user->getExample3()->getThirdArg() === "third";
+        echo $user->getExample31()->getThirdArg() === null;
+
+        echo $user->getExample4()->getString() === "customValue";
+        echo $user->getExample41()->getString() === "customValue";
+        echo $user->getExample4()->getThirdArg() === null;
+        echo $user->getExample41()->getThirdArg() === "third";
 
     }
 
@@ -111,6 +130,14 @@ class User
     /** @var Example[] @namespace Example */
     private array $exampleList;
     private ?string $allowNull;
+
+    private Example2 $example2;
+    private Example2 $example21;
+    private Example3 $example3;
+    private Example3 $example31;
+    private Example3 $example4;
+    private Example3 $example41;
+
 
     public function getName(): string
     {
@@ -196,6 +223,54 @@ class User
         return $this->exampleList;
     }
 
+    /**
+     * @return Example2
+     */
+    public function getExample2(): Example2
+    {
+        return $this->example2;
+    }
+
+    /**
+     * @return Example2
+     */
+    public function getExample21(): Example2
+    {
+        return $this->example21;
+    }
+
+    /**
+     * @return Example3
+     */
+    public function getExample3(): Example3
+    {
+        return $this->example3;
+    }
+
+    /**
+     * @return Example3
+     */
+    public function getExample31(): Example3
+    {
+        return $this->example31;
+    }
+
+    /**
+     * @return Example3
+     */
+    public function getExample4(): Example3
+    {
+        return $this->example4;
+    }
+
+    /**
+     * @return Example3
+     */
+    public function getExample41(): Example3
+    {
+        return $this->example41;
+    }
+
 
     public function getAllowNull(): ?string
     {
@@ -262,3 +337,44 @@ class Example
     }
 }
 
+class Example2
+{
+    private int $number;
+    private string $string;
+
+    public function __construct(int $firstArgument, string $secondArgument)
+    {
+        $this->number = $firstArgument + 1000;
+        $this->string = $secondArgument;
+    }
+
+    public function getNumber(): int
+    {
+        return $this->number;
+    }
+}
+
+class Example3
+{
+    private int $number;
+    private string $string;
+    private ?string $thirdArg;
+
+    public function __construct(int $firstArgument, string $secondArgument = "defaultValue", ?string $thirdArgument = null)
+    {
+        $this->number = $firstArgument + 1000;
+        $this->string = $secondArgument;
+        $this->thirdArg = $thirdArgument;
+    }
+
+    public function getString(): string
+    {
+        return $this->string;
+    }
+
+    public function getThirdArg(): ?string
+    {
+        return $this->thirdArg;
+    }
+
+}

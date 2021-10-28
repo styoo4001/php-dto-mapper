@@ -321,6 +321,7 @@ class DataTransferObjectMapper
                 $this->checkAllPropertyInit($instanceClass);
                 return $instanceClass;
             }
+//            if
             return $data;
         }, $value);
     }
@@ -330,7 +331,7 @@ class DataTransferObjectMapper
      * @param $value
      * @param int $convertType
      * @return mixed|void
-     * @throws ReflectionException
+     * @throws Exception
      */
     private function makeValueInObjectType($class, $value, int $convertType)
     {
@@ -346,7 +347,7 @@ class DataTransferObjectMapper
                 return $this->recursiveMapping($value, new $class(), $convertType);
 
             }
-            if ($reflectionClass->getConstructor()->getNumberOfParameters() === 1) {
+            if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
                 $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
                 if (!$reflectionParameter->hasType()) {
                     $instanceClass = new $class($value);
@@ -360,6 +361,71 @@ class DataTransferObjectMapper
                     return $instanceClass;
                 }
             }
+
+            if ($this->constructorHasManyArgument($reflectionClass)) {
+                if ($this->isAssoc($value)) {
+                    $args = [];
+                    foreach ($reflectionClass->getConstructor()->getParameters() as $parameter) {
+                        if ($parameter->isDefaultValueAvailable()) {
+                            if (array_key_exists($parameter->getName(), $value)) {
+                                $args[] = $value[$parameter->getName()];
+                            } else {
+                                $args[] = $parameter->getDefaultValue();
+                            }
+                        } else {
+                            $args[] = $value[$parameter->getName()] ?? null;
+                        }
+                    }
+
+                } else {
+                    $args = [];
+                    foreach ($reflectionClass->getConstructor()->getParameters() as $index => $parameter) {
+                        if ($parameter->isDefaultValueAvailable()) {
+                            if (array_key_exists($index, $value)) {
+                                $args[] = $value[$index];
+                            } else {
+                                $args[] = $parameter->getDefaultValue();
+                            }
+                        } else {
+                            $args[] = $value[$index] ?? null;
+                        }
+                    }
+                }
+
+                switch ($reflectionClass->getConstructor()->getNumberOfParameters()) {
+                    case 2:
+                        $instanceClass = new $class($args[0], $args[1]);
+                        break;
+                    case 3:
+                        $instanceClass = new $class($args[0], $args[1], $args[2]);
+                        break;
+                    case 4:
+                        $instanceClass = new $class($args[0], $args[1], $args[3], $args[4]);
+                        break;
+                    case 5:
+                        $instanceClass = new $class($args[0], $args[1], $args[3], $args[4], $args[5]);
+                        break;
+                    case 6:
+                        $instanceClass = new $class($args[0], $args[1], $args[3], $args[4], $args[5], $args[6]);
+                        break;
+                    case 7:
+                        $instanceClass = new $class($args[0], $args[1], $args[3], $args[4], $args[5], $args[6], $args[7]);
+                        break;
+                    case 8:
+                        $instanceClass = new $class($args[0], $args[1], $args[3], $args[4], $args[5], $args[6], $args[7], $args[8]);
+                        break;
+                    case 9:
+                        $instanceClass = new $class($args[0], $args[1], $args[3], $args[4], $args[5], $args[6], $args[7], $args[8], $args[9]);
+                        break;
+                    case 10:
+                        $instanceClass = new $class($args[0], $args[1], $args[3], $args[4], $args[5], $args[6], $args[7], $args[8], $args[9], $args[10]);
+                        break;
+                    default :
+                        throw new Exception('Auto constructor argument value is only possible up to 10');
+                }
+                $this->checkAllPropertyInit($instanceClass);
+                return $instanceClass;
+            }
         }
         if ($this->isDefaultType($value)) {
             // value 가 일반 기본값이면 객체 생성자 arg 로 생성 ex) value object
@@ -367,6 +433,7 @@ class DataTransferObjectMapper
             if ($this->isNotUsingConstructor($reflectionClass)) {
                 return $this->recursiveMapping([$value], new $class(), $convertType);
             }
+
             if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
                 $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
                 $instanceClass = new $class($this->forceCastingByDefaultType($reflectionParameter, $value));
@@ -386,6 +453,9 @@ class DataTransferObjectMapper
         }
         $propertyType = $reflectionParameter->getType();
         if (!$propertyType instanceof ReflectionNamedType) {
+            return $value;
+        }
+        if ($propertyType->getName() === gettype($value)) {
             return $value;
         }
         switch ($propertyType->getName()) {
@@ -439,8 +509,27 @@ class DataTransferObjectMapper
         return (!is_null($reflectionClass->getConstructor()) && $reflectionClass->getConstructor()->getNumberOfParameters() === 1);
     }
 
+    /**
+     * @param ReflectionClass $reflectionClass
+     * @return bool
+     */
+    private function constructorHasManyArgument(ReflectionClass $reflectionClass): bool
+    {
+        return (!is_null($reflectionClass->getConstructor()) && $reflectionClass->getConstructor()->getNumberOfParameters() > 1);
+    }
+
     private function isDefaultType($value): bool
     {
         return is_int($value) || is_float($value) || is_string($value) || is_bool($value);
+    }
+
+    /**
+     * @param array $arr
+     * @return bool
+     */
+    private function isAssoc(array $arr): bool
+    {
+        if (array() === $arr) return false;
+        return array_keys($arr) !== range(0, count($arr) - 1);
     }
 }
