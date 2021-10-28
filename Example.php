@@ -8,11 +8,23 @@ require_once "src/DataTransferObjectMapper.php";
 $_REQUEST = [
     'name' => 'styoo',
     'age' => '35',
+    'eyesight' => '0.8',
+    'correctArray' => [1, 2, 3],
+    'inCorrectArray' => 1,
     'money' => '1,000',
+    'moneyList' => ["1,000", "2,000"],
     'plus_money' => '1,000',
+    'plus_money_list' => ["1,000", "2,000"],
     '  skill  ' => ['server' => 'php', 'client' => 'js'],
-    'example' => ['example1' => 500, 'example2' => 'string']
-
+    'skillList' => [
+        ['server' => 'php5', 'client' => 'js'],
+        ['server' => 'php7', 'client' => 'js']
+    ],
+    'example' => ['example1' => 500, 'example2' => 'string'],
+    'exampleList' => [
+        ['example1' => 500, 'example2' => 'string'],
+        ['example1' => 1000, 'example2' => 'string']
+    ]
 ];
 
 $class = new Controller();
@@ -30,11 +42,27 @@ class Controller
         if ($mapper->hasErrors()) throw new Exception(var_export($mapper->getErrors(), true));
         echo $user->getName() === 'styoo';
         echo $user->getAge() === 35;
+        echo $user->getCorrectArray() === [1, 2, 3];
+        echo $user->getInCorrectArray() === [1];
+        echo $user->getEyesight() === 0.8;
         echo $user->getMoney()->getAmount() === 1000;
         echo $user->getPlusMoney()->getAmount() === 2000;
         echo $user->getAllowNull() === null;
         echo $user->getSkill()->getServer() === 'php';
         echo $user->getExample()->getNumber() === 1500;
+
+        foreach ($user->getSkillList() as $skill) {
+            echo $skill->getServer();
+        }
+        foreach ($user->getMoneyList() as $money) {
+            echo $money->getAmount();
+        }
+        foreach ($user->getPlusMoneyList() as $plusMoney) {
+            echo $plusMoney->getAmount();
+        }
+        foreach ($user->getExampleList() as $example) {
+            echo $example->getNumber();
+        }
 
     }
 
@@ -52,6 +80,7 @@ class Controller
 }
 
 // Inheritance is only necessary when used as a command object.
+//class User extends CommandObject
 
 /**
  * Class User
@@ -61,10 +90,26 @@ class User
 {
     private string $name;
     private int $age;
+    private float $eyesight;
     private Money $money;
+
+    private array $correctArray;
+    private array $inCorrectArray;
+
+    /** @var Money[] @namespace Money */
+    private array $moneyList;
     private PlusMoney $plusMoney;
+
+    /** @var PlusMoney[] @namespace PlusMoney */
+    private array $plusMoneyList;
+
     private Skill $skill;
+    /** @var Skill[] @namespace Skill */
+    private array $skillList;
+
     private Example $example;
+    /** @var Example[] @namespace Example */
+    private array $exampleList;
     private ?string $allowNull;
 
     public function getName(): string
@@ -72,10 +117,56 @@ class User
         return $this->name;
     }
 
+    public function getEyesight(): float
+    {
+        return $this->eyesight;
+    }
+
     public function getAge(): int
     {
         return $this->age;
     }
+
+    /**
+     * @return array
+     */
+    public function getCorrectArray(): array
+    {
+        return $this->correctArray;
+    }
+
+    /**
+     * @return array
+     */
+    public function getInCorrectArray(): array
+    {
+        return $this->inCorrectArray;
+    }
+
+    /**
+     * @return Money[]
+     */
+    public function getMoneyList(): array
+    {
+        return $this->moneyList;
+    }
+
+    /**
+     * @return PlusMoney[]
+     */
+    public function getPlusMoneyList(): array
+    {
+        return $this->plusMoneyList;
+    }
+
+    /**
+     * @return Skill[]
+     */
+    public function getSkillList(): array
+    {
+        return $this->skillList;
+    }
+
 
     public function getMoney(): Money
     {
@@ -96,6 +187,15 @@ class User
     {
         return $this->example;
     }
+
+    /**
+     * @return Example[]
+     */
+    public function getExampleList(): array
+    {
+        return $this->exampleList;
+    }
+
 
     public function getAllowNull(): ?string
     {

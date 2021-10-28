@@ -11,6 +11,7 @@ class DataTransferObjectMapper
 
     private array $errors;
 
+
     private ReflectionProperty $reflectionProperty;
     /**
      * @var mixed
@@ -26,7 +27,6 @@ class DataTransferObjectMapper
      */
     public function mapping(array $parameters, $className, int $convertType = self::CONVERT_NONE): self
     {
-        //error 초기화
         $this->errors = [];
         try {
             if (gettype($className) === 'string' && !class_exists($className)) {
@@ -38,55 +38,13 @@ class DataTransferObjectMapper
                 $this->class = new $className();
             }
             $reflectionClass = new ReflectionClass($this->class);
-
-            if ($convertType === self::CONVERT_NONE && !empty($reflectionClass->getDocComment())) {
-                if (preg_match('/@namingConvention\s+([^\s]+)/', $reflectionClass->getDocComment(), $match)) {
-                    [, $type] = $match;
-                    switch (strtoupper(trim($type))) {
-                        case "CAMEL" :
-                            $convertType = self::CONVERT_SNAKE_TO_CAMEL;
-                            break;
-                        case "SNAKE" :
-                            $convertType = self::CONVERT_CAMEL_TO_SNAKE;
-                        default :
-                    }
-                }
+            if ($convertType === self::CONVERT_NONE) {
+                $convertType = $this->selectKeyConventionConvertType($reflectionClass);
             }
+            $convertedParameters = $this->convertParameterWithConvertType($parameters, $convertType);
+            $this->setIfClassHasOnlySingleProperty($reflectionClass, $parameters, $convertType);
+            $this->setPropertyWithConvertedParameters($reflectionClass, $convertedParameters, $convertType);
 
-            $convertedParameters = [];
-            foreach ($parameters as $key => $value) {
-                $key = trim($key);
-                if ($convertType === self::CONVERT_SNAKE_TO_CAMEL) {
-                    $convertedParameters[$this->convertSnakeToCamel(strtolower($key))] = $value;
-                } elseif ($convertType === self::CONVERT_CAMEL_TO_SNAKE) {
-                    $convertedParameters[$this->convertCamelToSnake(strtolower($key))] = $value;
-                } else {
-                    $convertedParameters[$key] = $value;
-                }
-            }
-            // 클래스 속성이 1개, 데이터로 키가 없는 배열값이 1개인 경우면..키 확인을 하지 않고 바인딩한다.
-            if (count($parameters) === 1 && count($reflectionClass->getProperties()) === 1 && array_keys($parameters)[0] === 0) {
-                $this->reflectionProperty = $reflectionClass->getProperties()[0];
-                $this->reflectionProperty->setAccessible(true);
-                $this->setProperty($parameters[0], $convertType);
-            }
-
-            foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-                $this->reflectionProperty = $reflectionProperty;
-                $property = $reflectionProperty->getName();
-                $reflectionProperty->setAccessible(true);
-
-                if ($reflectionProperty->hasType() && $this->reflectionProperty->getType()->allowsNull()) {
-                    $this->setProperty(null);
-                }
-
-                if (array_key_exists($property, $convertedParameters)) {
-                    $this->setProperty($convertedParameters[$property], $convertType);
-                }
-                if (!$reflectionProperty->isInitialized($this->class)) {
-                    $this->errors[] = get_class($this->class) . "->{$reflectionProperty->getName()} is not initialized";
-                }
-            }
         } catch (Exception $e) {
             $this->errors[] = $e->getMessage();
         }
@@ -101,15 +59,14 @@ class DataTransferObjectMapper
         return $this->class;
     }
 
-
-    private function convertSnakeToCamel(string $str)
+    private function convertSnakeToCamel(string $str): string
     {
         $str = str_replace('_', '', ucwords($str, '_'));
         $str[0] = strtolower($str[0]);
-        return $str;
+        return (string)$str;
     }
 
-    private function convertCamelToSnake(string $str)
+    private function convertCamelToSnake(string $str): string
     {
         $pattern = '!([A-Z][A-Z0-9]*(?=$|[A-Z][a-z0-9])|[A-Za-z][a-z0-9]+)!';
         preg_match_all($pattern, $str, $matches);
@@ -131,7 +88,6 @@ class DataTransferObjectMapper
     private function setProperty($value, int $convertType = self::CONVERT_NONE)
     {
         try {
-
             //property 키로 $parameter값이 존재하면 타입캐스팅 하여 저장
             if (is_null($value)) {
                 $this->setValue($value);
@@ -147,7 +103,6 @@ class DataTransferObjectMapper
             if (!$propertyType instanceof ReflectionNamedType) {
                 return;
             }
-
             switch ($propertyType->getName()) {
                 case "string" :
                 case "bool" :
@@ -158,39 +113,7 @@ class DataTransferObjectMapper
                     $this->setValue($this->escapeStringForNumberConverting($value));
                     break;
                 case "array" :
-                    $match = null;
-                    //property 주석에 @namespace가 있으면 클래스로 인스턴스화 하여 할당한다.
-                    $propertyDocNamespace = '';
-                    if (preg_match('/@namespace\s+([^\s]+)/', $this->reflectionProperty->getDocComment(), $match)) {
-                        [, $type] = $match;
-                        $propertyDocNamespace = strlen(trim($type)) > 0 ? trim($type) : '';
-                    }
-                    //@namespace 주석에 classPath가 적혀있지 않거나, 존재하지 않는 클래스면 value를 직접 할당함.
-                    if (empty($propertyDocNamespace) || !class_exists($propertyDocNamespace)) {
-                        $this->setValue($value);
-                        break;
-                    }
-                    if (!is_iterable($value)) {
-                        $this->errors[] = "{$this->reflectionProperty->getName()} value is not iterable";
-                        break;
-                    }
-                    $this->setValue(array_map(function ($data) use ($propertyDocNamespace, $convertType) {
-                        if (gettype($data) === "array") {
-                            $mapper = new self();
-                            $mapper->mapping($data, new $propertyDocNamespace(), $convertType);
-                            if ($mapper->hasErrors()) {
-                                $this->errors = array_merge($this->errors, $mapper->getErrors());
-                            }
-                            return $mapper->getClass();
-                        } elseif (is_object($data)) {
-                            $this->checkAllPropertyInit($data);
-                            return $data;
-                        } else {
-                            $instanceClass = new $propertyDocNamespace($data);
-                            $this->checkAllPropertyInit($instanceClass);
-                            return $instanceClass;
-                        }
-                    }, $value));
+                    $this->setValue($this->makeValueInArrayType($value, $convertType));
                     break;
                 default :
                     //dto property 타입이 객체이면,
@@ -200,87 +123,7 @@ class DataTransferObjectMapper
                         $this->errors[] = "{$class} is not exists";
                         break;
                     }
-                    // value가 객체이면 그대로 set
-                    if (is_object($value) && get_class($value) === $class) {
-                        $this->setValue($value);
-                    } elseif (is_array($value)) {
-                        $reflectionClass = new ReflectionClass($class);
-                        if (is_null($reflectionClass->getConstructor()) || $reflectionClass->getConstructor()->getNumberOfParameters() === 0) {
-                            $mapper = new self();
-                            $mapper->mapping($value, new $class(), $convertType);
-                            if ($mapper->hasErrors()) {
-                                $this->errors = array_merge($this->errors, $mapper->getErrors());
-                            }
-                            $this->setValue($mapper->getClass());
-                        } else {
-                            if ($reflectionClass->getConstructor()->getNumberOfParameters() === 1) {
-                                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
-                                if (!$reflectionParameter->hasType()) {
-                                    $instanceClass = new $class($value);
-                                    $this->checkAllPropertyInit($instanceClass);
-                                    $this->setValue($instanceClass);
-                                    break;
-                                }
-                                $propertyType = $reflectionParameter->getType();
-                                if ($propertyType instanceof ReflectionNamedType && $propertyType->getName() === 'array') {
-                                    $instanceClass = new $class($value);
-                                    $this->checkAllPropertyInit($instanceClass);
-                                    $this->setValue($instanceClass);
-                                    break;
-                                }
-                            }
-                        }
-
-                        // value가 array이면 property 타입으로 인스턴스
-
-                    } elseif (is_int($value) || is_float($value) || is_string($value) || is_bool($value)) {
-                        // value 가 일반 기본값이면 객체 생성자 arg 로 생성 ex) value object
-                        $reflectionClass = new ReflectionClass($class);
-                        if (is_null($reflectionClass->getConstructor()) || $reflectionClass->getConstructor()->getNumberOfParameters() === 0) {
-                            $mapper = new self();
-                            $mapper->mapping([$value], new $class(), $convertType);
-                            if ($mapper->hasErrors()) {
-                                $this->errors = array_merge($this->errors, $mapper->getErrors());
-                            }
-                            $this->setValue($mapper->getClass());
-                        } else {
-                            if ($reflectionClass->getConstructor()->getNumberOfParameters() !== 1) {
-                                break;
-                            }
-                            $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
-                            if (!$reflectionParameter->hasType()) {
-                                $instanceClass = new $class($value);
-                                $this->checkAllPropertyInit($instanceClass);
-                                $this->setValue($instanceClass);
-                                break;
-                            }
-                            $propertyType = $reflectionParameter->getType();
-                            if (!$propertyType instanceof ReflectionNamedType) {
-                                return;
-                            }
-                            switch ($propertyType->getName()) {
-                                case "string" :
-                                    $value = (string)$value;
-                                    break;
-                                case "bool" :
-                                    $value = (bool)$value;
-                                    break;
-                                case "int" :
-                                    $value = (int)$this->escapeStringForNumberConverting($value);
-                                    break;
-                                case "float" :
-                                    $value = (float)$this->escapeStringForNumberConverting($value);
-                                    break;
-                            }
-                            $instanceClass = new $class($value);
-                            $this->checkAllPropertyInit($instanceClass);
-                            $this->setValue($instanceClass);
-                        }
-                    } else {
-                        //그 외의 경우는 에러로 취급한다.
-                        $notDefinedType = gettype($value);
-                        $this->errors[] = "{$this->reflectionProperty->getName()} set fail, value is not define type ({$notDefinedType}))";
-                    }
+                    $this->setValue($this->makeValueInObjectType($class, $value, $convertType));
             }
         } catch (Throwable $e) {
             $this->errors[] = get_class($this->class) . "->{$this->reflectionProperty->getName()} property error occurred. getMessage() => {$e->getMessage()}";
@@ -298,16 +141,18 @@ class DataTransferObjectMapper
 
     /**
      * @param $instancedClass
-     * @return mixed
-     * @throws Exception
      */
     private function checkAllPropertyInit($instancedClass)
     {
-        foreach ((new ReflectionClass($instancedClass))->getProperties() as $reflectionProperty) {
-            $reflectionProperty->setAccessible(true);
-            if (!$reflectionProperty->isInitialized($instancedClass)) {
-                $this->errors[] = get_class($this->class) . "->{$reflectionProperty->getName()} is not initialized";
+        try {
+            foreach ((new ReflectionClass($instancedClass))->getProperties() as $reflectionProperty) {
+                $reflectionProperty->setAccessible(true);
+                if (!$reflectionProperty->isInitialized($instancedClass)) {
+                    $this->errors[] = get_class($this->class) . "->{$reflectionProperty->getName()} is not initialized";
+                }
             }
+        } catch (ReflectionException $e) {
+            $this->errors[] = get_class($this->class) . "->{$e->getMessage()}";
         }
     }
 
@@ -326,4 +171,276 @@ class DataTransferObjectMapper
         return str_replace(",", "", $value);
     }
 
+    /**
+     * @param ReflectionClass $reflectionClass
+     * @return int
+     */
+    private function selectKeyConventionConvertType(ReflectionClass $reflectionClass): int
+    {
+        $convertType = self::CONVERT_NONE;
+        if (!empty($reflectionClass->getDocComment() &&
+            preg_match('/@namingConvention\s+([^\s]+)/', $reflectionClass->getDocComment(), $match))) {
+            [, $type] = $match;
+            switch (strtoupper(trim($type))) {
+                case "CAMEL" :
+                    $convertType = self::CONVERT_SNAKE_TO_CAMEL;
+                    break;
+                case "SNAKE" :
+                    $convertType = self::CONVERT_CAMEL_TO_SNAKE;
+                    break;
+                default :
+                    $convertType = self::CONVERT_NONE;
+            }
+        }
+        return $convertType;
+    }
+
+    private function convertParameterWithConvertType(array $parameters, int $convertType): array
+    {
+        $convertedParameters = [];
+        foreach ($parameters as $key => $value) {
+            $key = trim($key);
+            if ($convertType === self::CONVERT_SNAKE_TO_CAMEL) {
+                $convertedParameters[$this->convertSnakeToCamel($key)] = $value;
+            } elseif ($convertType === self::CONVERT_CAMEL_TO_SNAKE) {
+                $convertedParameters[$this->convertCamelToSnake($key)] = $value;
+            } else {
+                $convertedParameters[$key] = $value;
+            }
+        }
+        return $convertedParameters;
+
+    }
+
+    /**
+     * @param ReflectionClass $reflectionClass
+     * @param array $parameters
+     * @param int $convertType
+     * @throws Exception
+     */
+    private function setIfClassHasOnlySingleProperty(ReflectionClass $reflectionClass, array $parameters, int $convertType): void
+    {
+        if (count($parameters) === 1 && count($reflectionClass->getProperties()) === 1 && array_keys($parameters)[0] === 0) {
+            $this->reflectionProperty = $reflectionClass->getProperties()[0];
+            $this->reflectionProperty->setAccessible(true);
+            $this->setProperty($parameters[0], $convertType);
+        }
+    }
+
+    /**
+     * @param ReflectionClass $reflectionClass
+     * @param array $convertedParameters
+     * @param int $convertType
+     * @throws Exception
+     */
+    private function setPropertyWithConvertedParameters(ReflectionClass $reflectionClass, array $convertedParameters, int $convertType): void
+    {
+        foreach ($reflectionClass->getProperties() as $reflectionProperty) {
+            $this->reflectionProperty = $reflectionProperty;
+            $property = $reflectionProperty->getName();
+            $reflectionProperty->setAccessible(true);
+
+            if ($reflectionProperty->hasType() && $this->reflectionProperty->getType()->allowsNull()) {
+                $this->setProperty(null);
+            }
+
+            if (array_key_exists($property, $convertedParameters)) {
+                $this->setProperty($convertedParameters[$property], $convertType);
+            }
+            if (!$reflectionProperty->isInitialized($this->class)) {
+                $this->errors[] = get_class($this->class) . "->{$reflectionProperty->getName()} is not initialized";
+            }
+        }
+
+    }
+
+    /**
+     * @param string $docCommentKey
+     * @return string
+     */
+    private function getPropertyDocComment(string $docCommentKey): string
+    {
+        $match = null;
+        $docComment = '';
+        if (preg_match("/{$docCommentKey}\s+([^\s]+)/", $this->reflectionProperty->getDocComment(), $match)) {
+            [, $type] = $match;
+            $docComment = strlen(trim($type)) > 0 ? trim($type) : '';
+        }
+        return $docComment;
+    }
+
+    /**
+     * @param $value
+     * @param int $convertType
+     * @return array
+     */
+    private function makeValueInArrayType($value, int $convertType): array
+    {
+        //property 주석에 @namespace가 있으면 클래스로 인스턴스화 하여 할당한다.
+        $propertyDocNamespace = $this->getPropertyDocComment("@namespace");
+        //@namespace 주석에 classPath가 적혀있지 않거나, 존재하지 않는 클래스면 value를 직접 할당함.
+        if (empty($propertyDocNamespace)) {
+            if (is_array($value)) {
+                return $value;
+            }
+            return [$value];
+        }
+        if (!class_exists($propertyDocNamespace)) {
+            $this->errors[] = "{$this->reflectionProperty->getName()} documentComment class is not exist";
+            return [];
+        }
+
+        if (!is_iterable($value)) {
+            return [$value];
+        }
+
+        return array_map(function ($data) use ($propertyDocNamespace, $convertType) {
+            $reflectionClass = new ReflectionClass($propertyDocNamespace);
+
+            if (is_array($data)) {
+                if ($this->isNotUsingConstructor($reflectionClass)) {
+                    return $this->recursiveMapping($data, new $propertyDocNamespace(), $convertType);
+                }
+                if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
+                    $instanceClass = new $propertyDocNamespace($data);
+                    $this->checkAllPropertyInit($instanceClass);
+                    return $instanceClass;
+                }
+            }
+            if (is_object($data)) {
+                $this->checkAllPropertyInit($data);
+                return $data;
+            }
+            if ($this->isNotUsingConstructor($reflectionClass)) {
+                return $this->recursiveMapping([$data], new $propertyDocNamespace(), $convertType);
+            }
+
+            if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
+                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
+                $instanceClass = new $propertyDocNamespace($this->forceCastingByDefaultType($reflectionParameter, $data));
+                $this->checkAllPropertyInit($instanceClass);
+                return $instanceClass;
+            }
+            return $data;
+        }, $value);
+    }
+
+    /**
+     * @param $class
+     * @param $value
+     * @param int $convertType
+     * @return mixed|void
+     * @throws ReflectionException
+     */
+    private function makeValueInObjectType($class, $value, int $convertType)
+    {
+        // value가 객체이면 그대로 set
+        if (is_object($value) && get_class($value) === $class) {
+            return $value;
+        }
+
+        // value가 array이면 property 타입으로 인스턴스
+        if (is_array($value)) {
+            $reflectionClass = new ReflectionClass($class);
+            if ($this->isNotUsingConstructor($reflectionClass)) {
+                return $this->recursiveMapping($value, new $class(), $convertType);
+
+            }
+            if ($reflectionClass->getConstructor()->getNumberOfParameters() === 1) {
+                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
+                if (!$reflectionParameter->hasType()) {
+                    $instanceClass = new $class($value);
+                    $this->checkAllPropertyInit($instanceClass);
+                    return $instanceClass;
+                }
+                $propertyType = $reflectionParameter->getType();
+                if ($propertyType instanceof ReflectionNamedType && $propertyType->getName() === 'array') {
+                    $instanceClass = new $class($value);
+                    $this->checkAllPropertyInit($instanceClass);
+                    return $instanceClass;
+                }
+            }
+        }
+        if ($this->isDefaultType($value)) {
+            // value 가 일반 기본값이면 객체 생성자 arg 로 생성 ex) value object
+            $reflectionClass = new ReflectionClass($class);
+            if ($this->isNotUsingConstructor($reflectionClass)) {
+                return $this->recursiveMapping([$value], new $class(), $convertType);
+            }
+            if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
+                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
+                $instanceClass = new $class($this->forceCastingByDefaultType($reflectionParameter, $value));
+                $this->checkAllPropertyInit($instanceClass);
+                return $instanceClass;
+            }
+        }
+        $notDefinedType = gettype($value);
+        $this->errors[] = "{$this->reflectionProperty->getName()} set fail, value is not define type ({$notDefinedType}))";
+        return $value;
+    }
+
+    private function forceCastingByDefaultType(ReflectionParameter $reflectionParameter, $value)
+    {
+        if (!$reflectionParameter->hasType()) {
+            return $value;
+        }
+        $propertyType = $reflectionParameter->getType();
+        if (!$propertyType instanceof ReflectionNamedType) {
+            return $value;
+        }
+        switch ($propertyType->getName()) {
+            case "string" :
+                $value = (string)$value;
+                break;
+            case "bool" :
+                $value = (bool)$value;
+                break;
+            case "int" :
+                $value = (int)$this->escapeStringForNumberConverting($value);
+                break;
+            case "float" :
+                $value = (float)$this->escapeStringForNumberConverting($value);
+                break;
+        }
+        return $value;
+    }
+
+    /**
+     * @param $value
+     * @param $class
+     * @param int $convertType
+     * @return mixed
+     */
+    private function recursiveMapping($value, $class, int $convertType)
+    {
+        $mapper = new self();
+        $mapper->mapping($value, $class, $convertType);
+        if ($mapper->hasErrors()) {
+            $this->errors = array_merge($this->errors, $mapper->getErrors());
+        }
+        return $mapper->getClass();
+    }
+
+    /**
+     * @param ReflectionClass $reflectionClass
+     * @return bool
+     */
+    private function isNotUsingConstructor(ReflectionClass $reflectionClass): bool
+    {
+        return (is_null($reflectionClass->getConstructor()) || $reflectionClass->getConstructor()->getNumberOfParameters() === 0);
+    }
+
+    /**
+     * @param ReflectionClass $reflectionClass
+     * @return bool
+     */
+    private function constructorHasOnlySingleArgument(ReflectionClass $reflectionClass): bool
+    {
+        return (!is_null($reflectionClass->getConstructor()) && $reflectionClass->getConstructor()->getNumberOfParameters() === 1);
+    }
+
+    private function isDefaultType($value): bool
+    {
+        return is_int($value) || is_float($value) || is_string($value) || is_bool($value);
+    }
 }
