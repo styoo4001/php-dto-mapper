@@ -1,6 +1,10 @@
 <?php
 
-
+/**
+ * Class DataTransferObjectMapper
+ * author : styoo ( rian4001@gmail.com )
+ * version : 1.0
+ */
 class DataTransferObjectMapper
 {
 
@@ -148,11 +152,11 @@ class DataTransferObjectMapper
             foreach ((new ReflectionClass($instancedClass))->getProperties() as $reflectionProperty) {
                 $reflectionProperty->setAccessible(true);
                 if (!$reflectionProperty->isInitialized($instancedClass)) {
-                    $this->errors[] = get_class($this->class) . "->{$reflectionProperty->getName()} is not initialized";
+                    $this->errors[] = get_class($instancedClass) . "->{$reflectionProperty->getName()} is not initialized";
                 }
             }
         } catch (ReflectionException $e) {
-            $this->errors[] = get_class($this->class) . "->{$e->getMessage()}";
+            $this->errors[] = get_class($instancedClass) . "->{$e->getMessage()}";
         }
     }
 
