@@ -277,6 +277,7 @@ class DataTransferObjectMapper
      * @param $value
      * @param int $convertType
      * @return array
+     * @throws Exception
      */
     private function makeValueInArrayType($value, int $convertType): array
     {
@@ -299,46 +300,7 @@ class DataTransferObjectMapper
         }
 
         return array_map(function ($data) use ($propertyDocNamespace, $convertType) {
-            $reflectionClass = new ReflectionClass($propertyDocNamespace);
-
-            if (is_array($data)) {
-                if ($this->isNotUsingConstructor($reflectionClass)) {
-                    return $this->recursiveMapping($data, new $propertyDocNamespace(), $convertType);
-                }
-                if ($this->constructorHasOnlySingleRequiredArgument($reflectionClass)) {
-                    $instanceClass = new $propertyDocNamespace($data);
-                    $this->checkAllPropertyInit($instanceClass);
-                    return $instanceClass;
-                }
-                if ($this->constructorArgumentsThatHaveAllDefaultValue($reflectionClass)) {
-                    $instanceClass = new $propertyDocNamespace($data);
-                    $this->checkAllPropertyInit($instanceClass);
-                    return $instanceClass;
-                }
-            }
-            if (is_object($data)) {
-                $this->checkAllPropertyInit($data);
-                return $data;
-            }
-            if ($this->isNotUsingConstructor($reflectionClass)) {
-                return $this->recursiveMapping([$data], new $propertyDocNamespace(), $convertType);
-            }
-
-            if ($this->constructorHasOnlySingleRequiredArgument($reflectionClass)) {
-                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
-                $instanceClass = new $propertyDocNamespace($this->forceCastingByDefaultType($reflectionParameter, $data));
-                $this->checkAllPropertyInit($instanceClass);
-                return $instanceClass;
-            }
-            if ($this->constructorArgumentsThatHaveAllDefaultValue($reflectionClass)) {
-                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
-                $instanceClass = new $propertyDocNamespace($this->forceCastingByDefaultType($reflectionParameter, $data));
-                $this->checkAllPropertyInit($instanceClass);
-                return $instanceClass;
-            }
-
-
-            return $data;
+            return $this->makeValueInObjectType($propertyDocNamespace,$data,$convertType);
         }, $value);
     }
 
