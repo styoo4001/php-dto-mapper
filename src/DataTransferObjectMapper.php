@@ -305,7 +305,12 @@ class DataTransferObjectMapper
                 if ($this->isNotUsingConstructor($reflectionClass)) {
                     return $this->recursiveMapping($data, new $propertyDocNamespace(), $convertType);
                 }
-                if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
+                if ($this->constructorHasOnlySingleRequiredArgument($reflectionClass)) {
+                    $instanceClass = new $propertyDocNamespace($data);
+                    $this->checkAllPropertyInit($instanceClass);
+                    return $instanceClass;
+                }
+                if ($this->constructorArgumentsThatHaveAllDefaultValue($reflectionClass)) {
                     $instanceClass = new $propertyDocNamespace($data);
                     $this->checkAllPropertyInit($instanceClass);
                     return $instanceClass;
@@ -319,13 +324,20 @@ class DataTransferObjectMapper
                 return $this->recursiveMapping([$data], new $propertyDocNamespace(), $convertType);
             }
 
-            if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
+            if ($this->constructorHasOnlySingleRequiredArgument($reflectionClass)) {
                 $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
                 $instanceClass = new $propertyDocNamespace($this->forceCastingByDefaultType($reflectionParameter, $data));
                 $this->checkAllPropertyInit($instanceClass);
                 return $instanceClass;
             }
-//            if
+            if ($this->constructorArgumentsThatHaveAllDefaultValue($reflectionClass)) {
+                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
+                $instanceClass = new $propertyDocNamespace($this->forceCastingByDefaultType($reflectionParameter, $data));
+                $this->checkAllPropertyInit($instanceClass);
+                return $instanceClass;
+            }
+
+
             return $data;
         }, $value);
     }
