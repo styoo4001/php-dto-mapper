@@ -8,6 +8,7 @@ require_once "src/DataTransferObjectMapper.php";
 $_REQUEST = [
     'name' => 'styoo',
     'age' => '35',
+    'birthDay' => '2021-01-01 15:00:02',
     'eyesight' => '0.8',
     'correctArray' => [1, 2, 3],
     'inCorrectArray' => 1,
@@ -83,6 +84,7 @@ class Controller
         echo $user->getExample4()->getThirdArg() === null;
         echo $user->getExample41()->getThirdArg() === "third";
 
+        echo var_export($user->getBirthDay(),true);
     }
 
     // If there is a provider layer in the framework,
@@ -109,6 +111,7 @@ class User
 {
     private string $name;
     private int $age;
+    private DateTime $birthDay;
     private float $eyesight;
     private Money $money;
 
@@ -147,6 +150,11 @@ class User
     public function getEyesight(): float
     {
         return $this->eyesight;
+    }
+
+    public function getBirthDay(): DateTime
+    {
+        return $this->birthDay;
     }
 
     public function getAge(): int

@@ -3,7 +3,7 @@
 /**
  * Class DataTransferObjectMapper
  * author : styoo ( rian4001@gmail.com )
- * version : 1.0
+ * version : 1.01
  */
 class DataTransferObjectMapper
 {
@@ -438,7 +438,13 @@ class DataTransferObjectMapper
                 return $this->recursiveMapping([$value], new $class(), $convertType);
             }
 
-            if ($this->constructorHasOnlySingleArgument($reflectionClass)) {
+            if ($this->constructorHasOnlySingleRequiredArgument($reflectionClass)) {
+                $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
+                $instanceClass = new $class($this->forceCastingByDefaultType($reflectionParameter, $value));
+                $this->checkAllPropertyInit($instanceClass);
+                return $instanceClass;
+            }
+            if ($this->constructorArgumentsThatHaveAllDefaultValue($reflectionClass)) {
                 $reflectionParameter = $reflectionClass->getConstructor()->getParameters()[0];
                 $instanceClass = new $class($this->forceCastingByDefaultType($reflectionParameter, $value));
                 $this->checkAllPropertyInit($instanceClass);
@@ -511,6 +517,16 @@ class DataTransferObjectMapper
     private function constructorHasOnlySingleArgument(ReflectionClass $reflectionClass): bool
     {
         return (!is_null($reflectionClass->getConstructor()) && $reflectionClass->getConstructor()->getNumberOfParameters() === 1);
+    }
+
+    private function constructorHasOnlySingleRequiredArgument(ReflectionClass $reflectionClass): bool
+    {
+        return (!is_null($reflectionClass->getConstructor()) && $reflectionClass->getConstructor()->getNumberOfRequiredParameters() === 1);
+    }
+
+    private function constructorArgumentsThatHaveAllDefaultValue(ReflectionClass $reflectionClass): bool
+    {
+        return (!is_null($reflectionClass->getConstructor()) && $reflectionClass->getConstructor()->getNumberOfParameters() > 0 &&  $reflectionClass->getConstructor()->getNumberOfRequiredParameters() === 0);
     }
 
     /**
