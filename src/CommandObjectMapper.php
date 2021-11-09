@@ -13,8 +13,9 @@ class CommandObjectMapper
         $validator->setData($mappingData);
         $commandObject->validation($validator);
 
-
-        $mapper->mapping(array_merge($mappingData,$validator->getValidatedData()), $commandObject);
+        if (!$commandObject->hasErrors()) {
+            $mapper->mapping(array_merge($mappingData, $validator->getValidatedData()), $commandObject);
+        }
 
         // mapping 에러가 있다면 commandObject 에러과 합침
         if ($mapper->hasErrors()) {
