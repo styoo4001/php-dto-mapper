@@ -110,8 +110,11 @@ class Controller
 class User
 {
     private string $name;
+    /** @ParamName(age1) */
     private int $age;
     private DateTime $birthDay;
+
+    /** @Column(name="eyesight") */
     private float $eyesight;
     private Money $money;
 

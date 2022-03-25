@@ -1,3 +1,54 @@
+# Update 1.10
+
+
+### 1. multi array bind with create Class
+```
+if $userList = [
+                    ['user_nm' => 'A' , 'age' => 15],
+                    ['user_nm' => 'B' , 'age' => 16],
+                ];
+/** @var User[] */
+public array $userList;
+
+// then  get_class($this->userList[0]) === User::class;
+                
+```
+
+
+### 2. @separator
+```
+@separator
+// if ?numbers="123,456,789"
+/** @var int[] @separator ","  */
+public array $numbers;
+
+// then  $numbers = [123,456,789];
+// if /** @var string[] @separator ","  */
+// then  $numbers = ['123','456','789'];
+```
+
+### 3. @ParamName
+```
+// if ?number="123"
+/** @ParamName("number") or @ParamName(number) or @ParamName('number')   */
+public int $no;
+
+// then  $this->no = 123;
+```
+
+### 4. @Column('name=')
+```
+// if $db = [ 'usr_nm' => 'seungtae.yoo' ];
+
+/** @Column('usr_nm') or @Column(anyString = 'user_nm')   */
+public string $userName;
+
+// then  $this->userName = "seungtae.yoo";
+```
+
+
+
+
 # What is PHP-DataTransferObject-Mapper?
 
 This mapper is useful when converting data in an array into DTO.
