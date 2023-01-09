@@ -104,7 +104,8 @@ class DataTransferObjectMapper
             //property 키로 $parameter값이 존재하면 타입캐스팅 하여 저장
             if (is_null($value)) {
                 //null인 경우 property에 기본값이 지정되어있지 않거나, 또는 nullable 할때만 set
-                if(!$this->reflectionProperty->isInitialized($this->class) || $this->reflectionProperty->getType()->allowsNull()){
+                if (!$this->reflectionProperty->isInitialized($this->class) ||
+                    ($this->reflectionProperty->hasType() && $this->reflectionProperty->getType()->allowsNull())) {
                     $this->setValue($value);
                     return;
                 }
