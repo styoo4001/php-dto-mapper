@@ -127,7 +127,7 @@ class User extends CommandObject
 composer test
 ```
 
-And you can see the below:
+And you can see below:
 
 ```shell
 > ./vendor/bin/phpunit tests
@@ -145,4 +145,14 @@ Configuration: /Users/cable8mm/Sites/php-dto-mapper/phpunit.xml.dist
 Time: 00:00.007, Memory: 8.00 MB
 
 OK (1 test, 0 assertions)
+```
+
+## Formatting
+
+```shell
+composer lint
+# Modify all files to comply with the PSR-12.
+
+composer inspect
+# Inspect all files to ensure compliance with PSR-12.
 ```
