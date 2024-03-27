@@ -1,0 +1,48 @@
+{
+    "name": "styoo4001/php-dto-mapper",
+    "description": "This mapper is useful when converting data in an array into DTO.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "styoo4001",
+            "email": "rian4001@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^7.4|^8.0.2"
+    },
+    "require-dev": {
+        "illuminate/http": "^11.1",
+        "laravel/pint": "^1.0",
+        "phpunit/phpunit": "^9.0|^10.0|^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Styoo4001\\PhpDtoMapper\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "bin": [
+        "application"
+    ],
+    "scripts": {
+        "test": "./vendor/bin/phpunit tests",
+        "lint": "./vendor/bin/pint",
+        "inspect": "./vendor/bin/pint --test"
+    }
+}
