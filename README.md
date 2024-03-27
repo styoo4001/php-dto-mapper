@@ -1,6 +1,9 @@
-# Update 1.10
+# PHP-DataTransferObject-Mapper
 
-## Usage
+[![code-style](https://github.com/styoo4001/php-dto-mapper/actions/workflows/code-style.yml/badge.svg)](https://github.com/styoo4001/php-dto-mapper/actions/workflows/code-style.yml)
+[![run-tests](https://github.com/styoo4001/php-dto-mapper/actions/workflows/run-tests.yml/badge.svg)](https://github.com/styoo4001/php-dto-mapper/actions/workflows/run-tests.yml)
+
+## Update 1.10
 
 ### 1. multi array bind with create Class
 
