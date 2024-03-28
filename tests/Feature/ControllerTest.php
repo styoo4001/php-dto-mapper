@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests;
+namespace Tests\Feature;
 
 use PHPUnit\Framework\TestCase;
 use Tests\Fixtures\Controller;

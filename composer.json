@@ -30,16 +30,10 @@
     "config": {
         "preferred-install": "dist",
         "sort-packages": true,
-        "optimize-autoloader": true,
-        "allow-plugins": {
-            "pestphp/pest-plugin": true
-        }
+        "optimize-autoloader": true
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
-    "bin": [
-        "application"
-    ],
     "scripts": {
         "test": "./vendor/bin/phpunit tests",
         "lint": "./vendor/bin/pint",
