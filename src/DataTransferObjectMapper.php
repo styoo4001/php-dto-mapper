@@ -12,8 +12,10 @@ use Throwable;
 
 /**
  * Class DataTransferObjectMapper
- * author : styoo ( rian4001@gmail.com )
- * version : 1.10
+ *
+ * @author styoo <rian4001@gmail.com>
+ *
+ * @version 1.10
  */
 class DataTransferObjectMapper
 {
