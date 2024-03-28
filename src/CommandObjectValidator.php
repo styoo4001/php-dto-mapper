@@ -1,5 +1,7 @@
 <?php
 
+namespace Styoo4001\PhpDtoMapper;
+
 interface CommandObjectValidator
 {
     public function getValidator();
